@@ -5,7 +5,7 @@ import (
 
 	"github.com/NYTimes/gizmo/config"
 	"github.com/NYTimes/gizmo/server"
-	metadata "github.com/NYTimes/mock-ec2-metadata"
+	metadata "github.com/tashif-hoda/mock-ec2-metadata"
 )
 
 func main() {
