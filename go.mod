@@ -1,4 +1,4 @@
-module github.com/NYTimes/mock-ec2-metadata
+module github.com/tashif-hoda/mock-ec2-metadata
 
 go 1.19
 
