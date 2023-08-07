@@ -36,7 +36,7 @@ build:
 	$(GOPATH)/bin/gox -verbose -output "bin/mock-ec2-metadata_${VERSION}_{{.OS}}_{{.Arch}}" -os="linux" -os="darwin" -arch="386" -arch="amd64" -arch="arm64" ./cmd/server
 
 release:
-	$(GOPATH)/bin/ghr --username NYTimes --token ${GITHUB_TOKEN} -r mock-ec2-metadata --replace ${VERSION} bin/
+	$(GOPATH)/bin/ghr --username tashif-hoda --token ${GITHUB_TOKEN} -r mock-ec2-metadata --replace ${VERSION} bin/
 
 clean:
 	@test ! -e bin/|| rm -f bin/*
