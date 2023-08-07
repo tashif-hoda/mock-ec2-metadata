@@ -39,7 +39,7 @@ type (
 		Mac                 string              `json:"mac"`
 		Profile             string              `json:"profile"`
 		ReservationId       string              `json:"reservation-id"`
-		User                string              `json:"User"`
+		User                string              `json:"user"`
 		SecurityGroups      []string            `json:"security-groups"`
 		SecurityCredentials SecurityCredentials `json:"security-credentials"`
 		Network             Network             `json:"network"`
@@ -59,6 +59,34 @@ type (
 		config *Config
 	}
 )
+
+var listOfEndpoints = map[string][]string{
+	"MetadataPrefix": {
+		"/",
+		"/ami-id",
+		"/ami-launch-index",
+		"/ami-manifest-path",
+		"placement/availability-zone",
+		"/hostname",
+		"/instance-action",
+		"/instance-id",
+		"/instance-type",
+		"/iam/",
+		"/iam/security-credentials",
+		"/iam/security-credentials/",
+		"/iam/security-credentials/{username}",
+		"/local-hostname",
+		"/local-ipv4",
+		"/mac",
+		"/profile",
+		"/reservation-id",
+		"/security-groups",
+		"/network/interfaces/macs/00:00:00:00:00:00/security-group-ids",
+	},
+	"UserdataPrefix": {
+		"/",
+	},
+}
 
 // middleware for adding plaintext content type
 func plainText(h http.HandlerFunc) http.HandlerFunc {
@@ -143,8 +171,7 @@ func (s *MetadataService) GetSecurityGroupIds(w http.ResponseWriter, r *http.Req
 }
 
 func (s *MetadataService) GetSecurityCredentialDetails(w http.ResponseWriter, r *http.Request) {
-	// username := server.Vars(r)["username"]
-	username := r.Context().Value(2).(map[string]string)["username"]
+	username := mux.Vars(r)["username"]
 
 	if username != s.config.MetadataValues.User {
 		log.Println("error, IAM user not found")
@@ -186,66 +213,78 @@ func (service *MetadataService) Endpoints() (handlers map[string]map[string]http
 	handlers = make(map[string]map[string]http.HandlerFunc)
 	for index, value := range service.config.MetadataPrefixes {
 		log.Println("adding Metadata prefix (", index, ") ", value)
-		handlers[value+"/"] = map[string]http.HandlerFunc{
+		handlers[value+listOfEndpoints["MetadataPrefix"][0]] = map[string]http.HandlerFunc{
 			"GET": plainText(service.GetMetadataIndex),
 		}
-		handlers[value+"/ami-id"] = map[string]http.HandlerFunc{
+		handlers[value+listOfEndpoints["MetadataPrefix"][1]] = map[string]http.HandlerFunc{
 			"GET": plainText(service.GetAmiId),
 		}
-		handlers[value+"/ami-launch-index"] = map[string]http.HandlerFunc{
+		handlers[value+listOfEndpoints["MetadataPrefix"][2]] = map[string]http.HandlerFunc{
 			"GET": plainText(service.GetAmiLaunchIndex),
 		}
-		handlers[value+"/ami-manifest-path"] = map[string]http.HandlerFunc{
+		handlers[value+listOfEndpoints["MetadataPrefix"][3]] = map[string]http.HandlerFunc{
 			"GET": plainText(service.GetAmiManifestPath),
 		}
-		handlers[value+"/placement/availability-zone"] = map[string]http.HandlerFunc{
+		handlers[value+listOfEndpoints["MetadataPrefix"][4]] = map[string]http.HandlerFunc{
 			"GET": plainText(service.GetAvailabilityZone),
 		}
-		handlers[value+"/hostname"] = map[string]http.HandlerFunc{
+		handlers[value+listOfEndpoints["MetadataPrefix"][5]] = map[string]http.HandlerFunc{
 			"GET": plainText(service.GetHostName),
 		}
-		handlers[value+"/instance-action"] = map[string]http.HandlerFunc{
+		handlers[value+listOfEndpoints["MetadataPrefix"][6]] = map[string]http.HandlerFunc{
 			"GET": plainText(service.GetInstanceAction),
 		}
-		handlers[value+"/instance-id"] = map[string]http.HandlerFunc{
+		handlers[value+listOfEndpoints["MetadataPrefix"][7]] = map[string]http.HandlerFunc{
 			"GET": plainText(service.GetInstanceId),
 		}
-		handlers[value+"/instance-type"] = map[string]http.HandlerFunc{
+		handlers[value+listOfEndpoints["MetadataPrefix"][8]] = map[string]http.HandlerFunc{
 			"GET": plainText(service.GetInstanceType),
 		}
-		handlers[value+"/iam/"] = map[string]http.HandlerFunc{
+		handlers[value+listOfEndpoints["MetadataPrefix"][9]] = map[string]http.HandlerFunc{
 			"GET": plainText(service.GetIAM),
 		}
-		handlers[value+"/iam/security-credentials"] = map[string]http.HandlerFunc{
-			"GET": movedPermanently(value + "/iam/security-credentials/"),
+		handlers[value+listOfEndpoints["MetadataPrefix"][10]] = map[string]http.HandlerFunc{
+			"GET": movedPermanently(value + listOfEndpoints["MetadataPrefix"][11]),
 		}
-		handlers[value+"/iam/security-credentials/"] = map[string]http.HandlerFunc{
+		handlers[value+listOfEndpoints["MetadataPrefix"][11]] = map[string]http.HandlerFunc{
 			"GET": plainText(service.GetSecurityCredentials),
 		}
-		handlers[value+"/iam/security-credentials/{username}"] = map[string]http.HandlerFunc{
+		handlers[value+listOfEndpoints["MetadataPrefix"][12]] = map[string]http.HandlerFunc{
 			"GET": service.GetSecurityCredentialDetails,
 		}
-		handlers[value+"/local-hostname"] = map[string]http.HandlerFunc{
+		handlers[value+listOfEndpoints["MetadataPrefix"][13]] = map[string]http.HandlerFunc{
 			"GET": plainText(service.GetLocalHostName),
 		}
-		handlers[value+"/local-ipv4"] = map[string]http.HandlerFunc{
+		handlers[value+listOfEndpoints["MetadataPrefix"][14]] = map[string]http.HandlerFunc{
 			"GET": plainText(service.GetLocalIpv4),
 		}
-		handlers[value+"/mac"] = map[string]http.HandlerFunc{
+		handlers[value+listOfEndpoints["MetadataPrefix"][15]] = map[string]http.HandlerFunc{
 			"GET": plainText(service.GetMac),
 		}
-		handlers[value+"/profile"] = map[string]http.HandlerFunc{
+		handlers[value+listOfEndpoints["MetadataPrefix"][16]] = map[string]http.HandlerFunc{
 			"GET": plainText(service.GetProfile),
 		}
-		handlers[value+"/reservation-id"] = map[string]http.HandlerFunc{
+		handlers[value+listOfEndpoints["MetadataPrefix"][17]] = map[string]http.HandlerFunc{
 			"GET": plainText(service.GetReservationId),
 		}
-		handlers[value+"/security-groups"] = map[string]http.HandlerFunc{
+		handlers[value+listOfEndpoints["MetadataPrefix"][18]] = map[string]http.HandlerFunc{
 			"GET": plainText(service.GetSecurityGroups),
 		}
-		handlers[value+"/network/interfaces/macs/00:00:00:00:00:00/security-group-ids"] = map[string]http.HandlerFunc{
+		handlers[value+listOfEndpoints["MetadataPrefix"][19]] = map[string]http.HandlerFunc{
 			"GET": plainText(service.GetSecurityGroupIds),
 		}
+	}
+
+	for index, value := range service.config.UserdataPrefixes {
+		log.Println("adding Userdata prefix (", index, ") ", value)
+
+		handlers[value+listOfEndpoints["UserdataPrefix"][0]] = map[string]http.HandlerFunc{
+			"GET": plainText(service.GetUserData),
+		}
+	}
+
+	handlers["/"] = map[string]http.HandlerFunc{
+		"GET": service.GetIndex,
 	}
 	return
 }
@@ -285,9 +324,4 @@ func LoadJSONFile(fileName string, cfg interface{}) {
 	if err = json.Unmarshal(cb, &cfg); err != nil {
 		log.Fatalf("Unable to parse JSON in config file '%s': %s", fileName, err)
 	}
-}
-
-func main() {
-	metadataService := NewMetaDataService()
-	log.Fatal(metadataService.Serve())
 }
