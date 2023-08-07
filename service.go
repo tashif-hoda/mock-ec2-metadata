@@ -3,10 +3,13 @@ package metadata
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"log"
 	"net/http"
+	"os"
 	"strings"
 
-	"github.com/NYTimes/gizmo/server"
+	"github.com/gorilla/mux"
 )
 
 type (
@@ -43,7 +46,8 @@ type (
 	}
 
 	Config struct {
-		Server           *server.Config
+		router           *mux.Router
+		Server           struct{ HTTPPort int }
 		MetadataValues   *MetadataValues
 		MetadataPrefixes []string
 		UserdataValues   map[string]string
@@ -55,14 +59,6 @@ type (
 		config *Config
 	}
 )
-
-func NewMetadataService(cfg *Config) *MetadataService {
-	return &MetadataService{cfg}
-}
-
-func (s *MetadataService) Middleware(h http.Handler) http.Handler {
-	return h
-}
 
 // middleware for adding plaintext content type
 func plainText(h http.HandlerFunc) http.HandlerFunc {
@@ -147,10 +143,11 @@ func (s *MetadataService) GetSecurityGroupIds(w http.ResponseWriter, r *http.Req
 }
 
 func (s *MetadataService) GetSecurityCredentialDetails(w http.ResponseWriter, r *http.Request) {
-	username := server.Vars(r)["username"]
+	// username := server.Vars(r)["username"]
+	username := r.Context().Value(2).(map[string]string)["username"]
 
 	if username != s.config.MetadataValues.User {
-		server.Log.Error("error, IAM user not found")
+		log.Println("error, IAM user not found")
 		http.Error(w, "", http.StatusNotFound)
 		return
 	}
@@ -158,12 +155,12 @@ func (s *MetadataService) GetSecurityCredentialDetails(w http.ResponseWriter, r 
 	w.Header().Add("Content-Type", "application/json; charset=utf-8")
 	err := json.NewEncoder(w).Encode(s.config.MetadataValues.SecurityCredentials)
 	if err != nil {
-		server.Log.Error("error converting security credentails to json: ", err)
+		log.Println("error converting security credentails to json: ", err)
 		http.Error(w, "", http.StatusNotFound)
 		return
 	}
 
-	server.LogWithFields(r).Info("GetSecurityCredentialDetails returning: %#v",
+	log.Printf("GetSecurityCredentialDetails returning: %#v",
 		s.config.MetadataValues.SecurityCredentials)
 }
 
@@ -185,12 +182,10 @@ func (s *MetadataService) GetIndex(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Mock EC2 Metadata Service")
 }
 
-// Endpoints is a listing of all endpoints available in the MetadataService.
-func (service *MetadataService) Endpoints() map[string]map[string]http.HandlerFunc {
-	handlers := map[string]map[string]http.HandlerFunc{}
-
+func (service *MetadataService) Endpoints() (handlers map[string]map[string]http.HandlerFunc) {
+	handlers = make(map[string]map[string]http.HandlerFunc)
 	for index, value := range service.config.MetadataPrefixes {
-		server.Log.Info("adding Metadata prefix (", index, ") ", value)
+		log.Println("adding Metadata prefix (", index, ") ", value)
 		handlers[value+"/"] = map[string]http.HandlerFunc{
 			"GET": plainText(service.GetMetadataIndex),
 		}
@@ -252,28 +247,47 @@ func (service *MetadataService) Endpoints() map[string]map[string]http.HandlerFu
 			"GET": plainText(service.GetSecurityGroupIds),
 		}
 	}
+	return
+}
 
-	for index, value := range service.config.UserdataPrefixes {
-		server.Log.Info("adding Userdata prefix (", index, ") ", value)
-
-		handlers[value+"/"] = map[string]http.HandlerFunc{
-			"GET": plainText(service.GetUserData),
-		}
+func (service *MetadataService) RegisterEndpoints() {
+	for endpoint, handlers := range service.Endpoints() {
+		service.config.router.HandleFunc(endpoint, handlers["GET"])
 	}
-	handlers["/"] = map[string]http.HandlerFunc{
-		"GET": service.GetIndex,
+}
+
+func (service *MetadataService) Serve() error {
+	return http.ListenAndServe(fmt.Sprintf(":%d", service.config.Server.HTTPPort), service.config.router)
+}
+
+func NewMetaDataService() (metadataService *MetadataService) {
+	metadataService = &MetadataService{
+		config: &Config{router: mux.NewRouter()},
 	}
-	return handlers
+	if _, err := os.Stat("./mock-ec2-metadata-config.json"); err == nil {
+		LoadJSONFile("./mock-ec2-metadata-config.json", metadataService.config)
+	} else if _, err := os.Stat("/etc/mock-ec2-metadata-config.json"); err == nil {
+		LoadJSONFile("/etc/mock-ec2-metadata-config.json", metadataService.config)
+	} else {
+		log.Fatal("unable to locate config file. Please place mock-ec2-metadata-config.json in current directory.")
+	}
+	metadataService.RegisterEndpoints()
+	http.Handle("/", metadataService.config.router)
+	return metadataService
 }
 
-func (s *MetadataService) Prefix() string {
-	return "/"
+func LoadJSONFile(fileName string, cfg interface{}) {
+	cb, err := ioutil.ReadFile(fileName)
+	if err != nil {
+		log.Fatalf("Unable to read config file '%s': %s", fileName, err)
+	}
+
+	if err = json.Unmarshal(cb, &cfg); err != nil {
+		log.Fatalf("Unable to parse JSON in config file '%s': %s", fileName, err)
+	}
 }
 
-type error struct {
-	Err string
-}
-
-func (e *error) Error() string {
-	return e.Err
+func main() {
+	metadataService := NewMetaDataService()
+	log.Fatal(metadataService.Serve())
 }
