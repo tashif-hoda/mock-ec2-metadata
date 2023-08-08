@@ -47,6 +47,7 @@ Currently the support URLs for the metadata service are:
   * http://169.254.169.254/latest/meta-data/reservation-id
   * http://169.254.169.254/latest/meta-data/security-groups
   * http://169.254.169.254/latest/meta-data/iam/security-credentials
+  * http://169.254.169.254/latest/meta-data/network/interfaces/macs/{mac_address}/security-group-ids
 
 
 ## Getting started
