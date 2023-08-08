@@ -12,7 +12,7 @@ The metadata service normal listens on a special private ip address `169.254.169
 /sbin/ifconfig lo:1 inet 169.254.169.254 netmask 255.255.255.255 up
 ```
 
-To change is back
+To change it back
 
 ```console
 /sbin/ifconfig lo:1 inet 127.0.0.1 netmask 255.0.0.0 up
